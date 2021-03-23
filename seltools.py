@@ -28,14 +28,18 @@ def wait_for_page_load(driver, timeout=30):
     old_page = driver.find_element_by_tag_name('html')
     yield WebDriverWait(driver, timeout).until(staleness_of(old_page))
 
-def safeclick(driver, element, xtra_safe=False):
-    if xtra_safe:
-        loc = element.rect
-        element = driver.execute_script(
-            "return document.elementFromPoint(arguments[0], arguments[1]);",
-            loc['x'],
-            loc['y'])
-    driver.execute_script('arguments[0].click()',element)
+def safeclick(driver, element):
+    loc = element.rect
+    print(loc)
+    eloc = driver.execute_script(
+        "return document.elementFromPoint(arguments[0], arguments[1]);",
+        loc['x']+5,
+        loc['y']+5
+    )
+    if eloc != None: eloc.click()
+    else:
+        try: element.click()
+        except: element.find_element_by_xpath('./..').click()
 
 def submit(driver):
     """Presses any 'submit' button"""

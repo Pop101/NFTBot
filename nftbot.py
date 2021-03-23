@@ -247,6 +247,36 @@ def create_nft(driver, info, sale_info={}):
     # Wait for completion
     seltools.wait_for_element(driver, '//div//div[contains(@class,"collectionManagerAssetCreate")]/../header')
 
+    # If sale
+    if sale_info and 'price' in sale_info:
+        # Go to sale menu
+        seltools.wait_for_element(driver, '//div//div[contains(@class,"collectionManagerAssetCreate")]//div[contains(@class,"done")]/a[2]/div').click()
+
+        # Click on necessary type
+        sale_type = 1 if 'type' in sale_info and (sale_info['type'] == 1 or str(sale_info['type']).lower() == 'auction') else 0
+        seltools.wait_for_element(driver, '//div[contains(@class,"AssetSellToggleType")]//div[contains(@data-testid,"AssetSellToggleType")]')
+        sale_option = driver.find_elements_by_xpath('//div[contains(@class,"AssetSellToggleType")]//div[contains(@data-testid,"AssetSellToggleType")]')
+        sale_option = sale_option[sale_type % len(sale_option)]
+        sale_option.click()
+
+        # Fill in price
+        driver.find_element_by_xpath(
+            '//div[@class="container"]/div[1]//div[contains(@class,"PaymentTokenInput")]//input'
+        ).send_keys(str(sale_info['price']))
+
+        # Sell!
+        driver.find_element_by_xpath(
+            '//div[contains(@data-testid,"PostListing")]/div'
+        ).click()
+
+        goto_tab(driver, tab=1)
+        seltools.wait_for_page_load(driver)
+        mm_bullshit_bypass(driver)
+        mm_accept_all_popups(driver)
+        single_tab(driver)
+        print('Sale Complete')
+
+
 
 def file_to_nft_info(path_to_file:str, overrides:dict={}, date_format:str='%B %d, %Y', add_placeholders:dict={}, defaults:dict={'name':'%n','properties':{'Created On': '%c','File Size': '%z'}}):
     # extract the file's name and type
@@ -326,7 +356,10 @@ if __name__ == '__main__':
 
             # Create the NFT!
             print(f'Creating NFT #{i} with metadata ', nft_meta)
-            create_nft(driver, nft_meta)
+            create_nft(driver, nft_meta, sale_info= {
+                'price': 0.01,
+                'type': 'sale'
+            })
 
             i += 1
         print('All NFTs created successfully')
