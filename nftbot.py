@@ -89,7 +89,7 @@ def setup_metamask_with_opensea(driver, seed_phrase):
 
     # Sign in to opensea
     driver.get('https://opensea.io/wallet/locked?referrer=%2Fcollections')
-    seltools.wait_for_element(driver, '//div[contains(@class,"ActionButton") and contains(@data-testid,"Button")]').click()
+    seltools.wait_for_element(driver, '//div[contains(@class, "wallet--wrapper")]//div[contains(@class,"ActionButton") and contains(@data-testid,"Button")]').click()
 
     # Connect in metamask
     goto_tab(driver, tab=1)
@@ -99,20 +99,24 @@ def setup_metamask_with_opensea(driver, seed_phrase):
     single_tab(driver)
 
     # sometimes we need to try again. I love metamask
-    time.sleep(0.5)
-    if len(driver.find_elements_by_xpath('//*[@id="__next"]/div[1]/div/div/span/div/div/div/div/div[1]/div[2]/div/div')) > 0:
-        driver.find_element_by_xpath('//*[@id="__next"]/div[1]/div/div/span/div/div/div/div/div[1]/div[2]/div/div').click()
-        time.sleep(2.5)
-        if len(driver.window_handles) > 1:
-            driver.switch_to.window(driver.window_handles[1])
-            seltools.wait_for_page_load(driver)
-            mm_bullshit_bypass(driver)
-            mm_accept_all_popups(driver)
-            single_tab(driver)
+    time.sleep(1.0)
+    try:
+        if len(driver.find_elements_by_xpath('//div[contains(@class, "wallet--wrapper")]//div[contains(@class,"ActionButton") and contains(@data-testid,"Button")]')) > 0:
+            time.sleep(1.5)
+            driver.find_element_by_xpath('//div[contains(@class, "wallet--wrapper")]//div[contains(@class,"ActionButton") and contains(@data-testid,"Button")]').click()
+            time.sleep(1.0)
+            if len(driver.window_handles) > 1:
+                driver.switch_to.window(driver.window_handles[1])
+                seltools.wait_for_page_load(driver)
+                mm_bullshit_bypass(driver)
+                mm_accept_all_popups(driver)
+                single_tab(driver)
+    except:
+        pass
 
     seltools.wait_for_page_load(driver)
 
-def create_nft(driver, info):
+def create_nft(driver, info, sale_info={}):
     if 'image' not in info: return
     if 'name' not in info: return
 
@@ -121,7 +125,7 @@ def create_nft(driver, info):
 
     # Select the first collection (one must be pre-made)
     seltools.wait_for_element(driver, '//div[contains(@class,"ImageCardreact")]').click()
-    seltools.wait_for_element(driver, '//*[@id="__next"]/div[1]/div/div/div/span/div/div/div/main/div[2]/div[3]/section/a/div').click()
+    seltools.wait_for_element(driver, '//a//div[contains(@class,"ActionButtonreact")]').click()
 
     # Sign with wallet
     goto_tab(driver, tab=1)
@@ -135,7 +139,7 @@ def create_nft(driver, info):
     # Upload an image
     # Yes, this is ugly. Yes, this isn't ideal, 
     # but I couldn't get send_keys or setting the value with js to work
-    seltools.wait_for_element(driver, '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[1]/div/div/div').click()
+    seltools.wait_for_element(driver, '//div[contains(@class,"MediaInput") and contains(@class,"wrapper")]').click()
     time.sleep(2.0)
     autoit.win_active('Open')
     autoit.control_set_text('Open','Edit1',info['image'])
@@ -143,25 +147,28 @@ def create_nft(driver, info):
 
     # Fill in all other fields
     driver.find_element_by_xpath(
-        '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[2]/div/div[1]/input'
+        '//label[@for="name"]/..//input'
     ).send_keys(info['name'])
 
     if 'link' in info and len(info['link']) > 0:
         driver.find_element_by_xpath(
-            '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[3]/div/div/input'
+            '//label[@for="external_link"]/..//input'
         ).send_keys(info['link'])
 
     if 'description' in info and len(info['description']) > 0:
         driver.find_element_by_xpath(
-            '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[4]/textarea'
+            '//label[@for="description"]/..//input'
         ).send_keys(info['description'])
 
     def property_fillin(driver, infoname:str, start_xpath:str, row_input_box_xpaths:tuple or list):
         if 'opensea.io/collection' not in driver.current_url: return
         if 'assets/create' not in driver.current_url: return
         if infoname not in info or len(info[infoname]) == 0: return
+        
+        # I don't know why, but action chains are the only way I could do this without crashing.
+        btn = driver.find_element_by_xpath(start_xpath)
+        webdriver.common.action_chains.ActionChains(driver).move_to_element_with_offset(btn, 5, 5).click().perform()
 
-        driver.find_element_by_xpath(start_xpath).click()
         popup = seltools.wait_for_element(driver, '//div[contains(@class,"ModalV2react")]')
         
         # hit add more
@@ -196,7 +203,7 @@ def create_nft(driver, info):
     property_fillin(
         driver,
         'properties',
-        '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[5]/div/div[2]/div/div',
+        '//form/div[5]/div/div[2]/div/div',
         ('.//input[contains(@placeholder,"Character")]', 
         './/input[contains(@placeholder,"Male")]')
     )
@@ -205,31 +212,31 @@ def create_nft(driver, info):
     property_fillin(
         driver,
         'levels',
-        '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[6]/div/div[2]/div/div',
+        '//form/div[6]/div/div[2]/div/div',
         ('.//input[contains(@placeholder,"Speed")]', 
-        '//*[@id="__next"]/div[2]/div[3]/div/div/div[2]/div/table/tbody/tr/td[2]/div/div/input',
-        '//*[@id="__next"]/div[2]/div[3]/div/div/div[2]/div/table/tbody/tr/td[3]/div/div/input')
+        './/table/tbody/tr/td[2]/div/div/input',
+        './/table/tbody/tr/td[3]/div/div/input')
     )
 
     # Fill in stats
     property_fillin(
         driver,
         'stats',
-        '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[7]/div/div[2]/div/div',
+        '//form/div[7]/div/div[2]/div/div',
         ('.//input[contains(@placeholder,"Speed")]', 
-        '//*[@id="__next"]/div[2]/div[3]/div/div/div[2]/div/table/tbody/tr/td[2]/div/div/input',
-        '//*[@id="__next"]/div[2]/div[3]/div/div/div[2]/div/table/tbody/tr/td[3]/div/div/input')
+        './/table/tbody/tr/td[2]/div/div/input',
+        './/table/tbody/tr/td[3]/div/div/input')
     )
 
     # Fill in unlockable content
     if 'unlocked' in info:
         driver.find_element_by_xpath('//div[@class="switch"]').click()
-        txtbox = seltools.wait_for_element(driver, '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[9]/textarea')
+        txtbox = seltools.wait_for_element(driver, '//div[contains(@class, "unlockable-content")]//textarea')
         txtbox.click()
         txtbox.send_keys(info['unlocked'])
 
     # Create NFT!!!
-    driver.find_element_by_xpath('//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/form/div[10]/div[1]/div').click()
+    driver.find_element_by_xpath('//div[contains(@class, "action")]//div[contains(@class, "DivButton")]').click()
 
     goto_tab(driver, tab=1)
     seltools.wait_for_page_load(driver)
@@ -238,7 +245,8 @@ def create_nft(driver, info):
     single_tab(driver)
 
     # Wait for completion
-    seltools.wait_for_element(driver, '//*[@id="__next"]/div[1]/div/div/span/div/div/div/main/div[2]/div/div[1]/div[2]/a[1]/div/div')
+    seltools.wait_for_element(driver, '//div//div[contains(@class,"collectionManagerAssetCreate")]/../header')
+
 
 def file_to_nft_info(path_to_file:str, overrides:dict={}, date_format:str='%B %d, %Y', add_placeholders:dict={}, defaults:dict={'name':'%n','properties':{'Created On': '%c','File Size': '%z'}}):
     # extract the file's name and type
